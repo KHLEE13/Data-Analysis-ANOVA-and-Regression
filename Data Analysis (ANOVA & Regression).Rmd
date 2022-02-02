@@ -176,7 +176,7 @@ ggplot(data.aov, aes(운동, HR)) +
 ```
 
 ```{r correlation}
-cor.result1 <- with(data.aov, cor.test(Vo2, HR))
+cor.result <- with(data.aov, cor.test(Vo2, HR))
 
 ggplot(data.aov, aes(x=HR, y=Vo2)) + 
     geom_point() + 
@@ -184,19 +184,6 @@ ggplot(data.aov, aes(x=HR, y=Vo2)) +
     labs(title="개별 데이터의 Heart Rate와 VO2 (ml/kg/min)",
          x="Heart Rate", y="VO2 (ml/kg/min)") +
     theme_light()
-
-cor.result2 <- with(nonstop.aov, cor.test(복합_Vo2, 복합_HR))
-
-ggplot(nonstop.aov, aes(x=복합_HR, y=복합_Vo2)) + 
-    geom_point() + 
-    geom_smooth(method=lm, se=TRUE) +
-    labs(title="복합 데이터의 Heart Rate와 VO2 (ml/kg/min)",
-         x="Heart Rate", y="VO2 (ml/kg/min)") +
-    theme_light()
-
-cor.df <- data.frame(대상=c("개별 데이터 전체", "복합 데이터 전체"),
-             상관관계=c(cor.result1$estimate, cor.result2$estimate))
-
 ```
 
 ```{r regression}

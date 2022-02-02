@@ -1,0 +1,236 @@
+---
+title: "ANOVA & Regression"
+author: "KHLEE"
+date: '2022 2 2 '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+library(Metrics)
+library(readxl)
+```
+
+
+```{r participants}
+data <- read_excel("개별데이터 모음_최종 2분.xlsx", 
+                      sheet = "Sheet1",
+                      col_names=TRUE,
+                      na="")
+
+data.demo <-  data[-which(duplicated(data$이름)),]
+
+data.demo.long <- melt(data.demo, id.vars="이름",
+                   measure.vars=c("age", "height", "weight", "BMI"))
+
+demo.result <- data.demo.long %>%
+    group_by(variable) %>% 
+    summarise(N=sum(!is.na(value)),
+              평균=round(mean(value, na.rm=TRUE), 2),
+              표준편차=round(sd(value, na.rm=TRUE), 2),
+              중앙치=round(median(value, na.rm=TRUE), 2),
+              사분범위=round(IQR(value, na.rm=TRUE), 2),
+              최소값=round(min(value, na.rm=TRUE), 2),
+              최대값=round(max(value, na.rm=TRUE), 2)) %>% 
+    ungroup()
+
+kable(demo.result, caption="연구 대상자 특성", align="c")
+```
+
+```{r descriptive}
+data.aov <- data %>% 
+    group_by(이름, 운동) %>% 
+    summarise(N=sum(!is.na(VO2)),
+              Vo2=round(mean(VO2, na.rm=TRUE), 2),
+              METS=round(mean(METS, na.rm=TRUE), 2),
+              HR=round(mean(HR, na.rm=TRUE), 2)) %>% 
+    ungroup() %>% 
+    mutate(이름=as.factor(이름),
+            운동=as.factor(운동))
+
+vo2.descript <- data.aov %>%
+    group_by(운동) %>% 
+    summarise(N=sum(!is.na(Vo2)),
+              평균=round(mean(Vo2, na.rm=TRUE), 2),
+              표준편차=round(sd(Vo2, na.rm=TRUE), 2),
+              중앙치=round(median(Vo2, na.rm=TRUE), 2),
+              최소값=round(min(Vo2, na.rm=TRUE), 2),
+              최대값=round(max(Vo2, na.rm=TRUE), 2)) %>% 
+    ungroup()
+kable(vo2.descript, caption="개별 데이터 VO2/kg 측정 결과", align="c")
+
+METS.descript <- data.aov %>%
+    group_by(운동) %>% 
+    summarise(N=sum(!is.na(METS)),
+              평균=round(mean(METS, na.rm=TRUE), 2),
+              표준편차=round(sd(METS, na.rm=TRUE), 2),
+              중앙치=round(median(METS, na.rm=TRUE), 2),
+              최소값=round(min(METS, na.rm=TRUE), 2),
+              최대값=round(max(METS, na.rm=TRUE), 2)) %>% 
+    ungroup()
+kable(METS.descript, caption="개별 데이터 METs 측정 결과", align="c")
+
+HR.descript <- data.aov %>%
+    group_by(운동) %>% 
+    summarise(N=sum(!is.na(HR)),
+              평균=round(mean(HR, na.rm=TRUE), 2),
+              표준편차=round(sd(HR, na.rm=TRUE), 2),
+              중앙치=round(median(HR, na.rm=TRUE), 2),
+              최소값=round(min(HR, na.rm=TRUE), 2),
+              최대값=round(max(HR, na.rm=TRUE), 2)) %>% 
+    ungroup()
+kable(HR.descript, caption="개별 데이터 심박수 측정 결과", align="c")
+```
+
+```{r ANOVA}
+options(scipen=999)
+
+owa.result <- aov(Vo2 ~ 운동, data=data.aov) 
+summary(owa.result)
+HSD <- TukeyHSD(owa.result)
+HSD <- data.frame(HSD$운동)
+HSD$pair <- row.names(HSD)
+row.names(HSD) <- NULL
+HSD <- HSD[,c(ncol(HSD), 2:ncol(HSD)-1)] 
+HSD[,-1] <- sapply(HSD[,-1], function(x) round(x, 3))
+kable(HSD, caption="Post-Hoc Pairwise Comparisons Tukey's HSD", algin="c")
+
+ggplot(data.aov, aes(운동, Vo2)) +
+    stat_summary(fun = mean, 
+                 geom = "bar", 
+                 fill = "White", 
+                 color = "Black") +
+    stat_summary(fun.data = mean_cl_normal,                
+                 geom = "errorbar", 
+                 position = position_dodge(width = 0.90),
+                 width = 0.2) +
+    xlab("Type of Exercise") +
+    ylab("VO2 (ml/kg/min)") +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black"), 
+          legend.key = element_rect(fill = "white"),
+          text = element_text(size = 10))
+
+
+owa.result2 <- aov(METS ~ 운동, data=data.aov) 
+summary(owa.result2)
+HSD <- TukeyHSD(owa.result2)
+HSD <- data.frame(HSD$운동)
+HSD$pair <- row.names(HSD)
+row.names(HSD) <- NULL
+HSD <- HSD[,c(ncol(HSD), 2:ncol(HSD)-1)] 
+HSD[,-1] <- sapply(HSD[,-1], function(x) round(x, 3))
+kable(HSD, caption="Post-Hoc Pairwise Comparisons Tukey's HSD", algin="c")
+
+ggplot(data.aov, aes(운동, METS)) +
+    stat_summary(fun = mean, 
+                 geom = "bar", 
+                 fill = "White", 
+                 color = "Black") +
+    stat_summary(fun.data = mean_cl_normal,                
+                 geom = "errorbar", 
+                 position = position_dodge(width = 0.90),
+                 width = 0.2) +
+    xlab("Type of Exercise") +
+    ylab("METs") +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black"), 
+          legend.key = element_rect(fill = "white"),
+          text = element_text(size = 10))
+
+owa.result3 <- aov(HR ~ 운동, data=data.aov) 
+summary(owa.result3)
+HSD <- TukeyHSD(owa.result3)
+HSD <- data.frame(HSD$운동)
+HSD$pair <- row.names(HSD)
+row.names(HSD) <- NULL
+HSD <- HSD[,c(ncol(HSD), 2:ncol(HSD)-1)] 
+HSD[,-1] <- sapply(HSD[,-1], function(x) round(x, 3))
+kable(HSD, caption="Post-Hoc Pairwise Comparisons Tukey's HSD", algin="c")
+
+ggplot(data.aov, aes(운동, HR)) +
+    stat_summary(fun = mean, 
+                 geom = "bar", 
+                 fill = "White", 
+                 color = "Black") +
+    stat_summary(fun.data = mean_cl_normal,                
+                 geom = "errorbar", 
+                 position = position_dodge(width = 0.90),
+                 width = 0.2) +
+    xlab("Type of Exercise") +
+    ylab("Heart Rate") +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black"), 
+          legend.key = element_rect(fill = "white"),
+          text = element_text(size = 10))
+```
+
+```{r correlation}
+cor.result1 <- with(data.aov, cor.test(Vo2, HR))
+
+ggplot(data.aov, aes(x=HR, y=Vo2)) + 
+    geom_point() + 
+    geom_smooth(method=lm, se=TRUE) +
+    labs(title="개별 데이터의 Heart Rate와 VO2 (ml/kg/min)",
+         x="Heart Rate", y="VO2 (ml/kg/min)") +
+    theme_light()
+
+cor.result2 <- with(nonstop.aov, cor.test(복합_Vo2, 복합_HR))
+
+ggplot(nonstop.aov, aes(x=복합_HR, y=복합_Vo2)) + 
+    geom_point() + 
+    geom_smooth(method=lm, se=TRUE) +
+    labs(title="복합 데이터의 Heart Rate와 VO2 (ml/kg/min)",
+         x="Heart Rate", y="VO2 (ml/kg/min)") +
+    theme_light()
+
+cor.df <- data.frame(대상=c("개별 데이터 전체", "복합 데이터 전체"),
+             상관관계=c(cor.result1$estimate, cor.result2$estimate))
+
+```
+
+```{r regression}
+options(scipen=999)
+vo2lm <- lm(Vo2 ~ HR, data=data.aov)
+summary(vo2lm)
+options(scipen=0)
+
+pred <- predict(vo2lm, newdata=data.aov)
+MPE <- mean(((data.aov$Vo2-pred)/data.aov$Vo2)*100)
+MAPE <- mean(((abs(data.aov$Vo2-pred))/data.aov$Vo2)*100)
+RMSE <- sqrt(mean((pred-data.aov$Vo2)^2))
+MSE <- mean((pred-data.aov$Vo2)^2)
+
+accuracy.df <- data.frame(대상=c("개별 데이터 전체"),
+                          MPE=c(MPE),
+                          MAPE=c(MAPE),
+                          RMSE=c(RMSE),
+                          MSE=c(MSE))
+for (i in unique(data.aov$운동)){
+    pred <- predict(vo2lm, newdata=data.aov[data.aov$운동==i,])
+    MPE <- mean(((data.aov[data.aov$운동==i,]$Vo2-pred)/data.aov[data.aov$운동==i,]$Vo2)*100)
+    MAPE <- mean(((abs(data.aov[data.aov$운동==i,]$Vo2-pred))/data.aov[data.aov$운동==i,]$Vo2)*100)
+    RMSE <- sqrt(mean((pred-data.aov[data.aov$운동==i,]$Vo2)^2))
+    MSE <- mean((pred-data.aov[data.aov$운동==i,]$Vo2)^2)
+
+    accuracy.temp <- data.frame(대상=c(paste0("개별 데이터 ", i)),
+                               MPE=c(MPE),
+                               MAPE=c(MAPE),
+                               RMSE=c(RMSE),
+                               MSE=c(MSE))
+    accuracy.df <- rbind(accuracy.df, accuracy.temp)
+
+}
+accuracy.df[,-1] <- sapply(accuracy.df[,-1], function(x) round(x, 3)) 
+kable(accuracy.df, caption="회귀 모델 정확도 지표 (개별 데이터)", align="c")
+```
